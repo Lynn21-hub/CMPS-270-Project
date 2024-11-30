@@ -7,6 +7,15 @@
 #include <stdlib.h>
 #include<stdbool.h>
 
+//Requires:
+// - Valid, non-null pointers "attacker" and "defender" of type "Player" structure
+// - "trackingDifficulty" must be a valid integer 
+//Effects:
+// - Prompts player for target coordinates and validates them
+// - Checks if the cell with input coordinates has already been targeted
+// - If fire target is valid : the function updates the "defender" grid to HIT or MISS
+// -                           the function updates the "attacker" grid also accordingly
+// - Returns 1 if game is over, 0 otherwise
 int fire(Player *attacker, Player *defender, int trackingDifficulty) {
     char input[10];
     int row, col;
@@ -86,7 +95,13 @@ int fire(Player *attacker, Player *defender, int trackingDifficulty) {
 
 
 
-     
+//Requires:
+// - Valid, non-null pointers "attacker" and "defender" of type "Player" structure
+//Effects:
+// - Checks for number of remaining allowed radar sweep moves
+// - Prompts player for valid coordinates
+// - Validates coordinates
+// - Informs attacker, by printing messages, of the presence of ships in area of coordinates
 void radar(Player *attacker, Player *defender) {
     // 1. Check radar sweeps remaining
     if (attacker->radarSweepsUsed >= 3) {
@@ -152,9 +167,14 @@ void radar(Player *attacker, Player *defender) {
 }
 
 
+//Requires: Valid, non-null pointer "player" of type "Player" structure
+//Effets:
+// - Prompts the player for target coordinates
+// - Validates coordinates
+// - If the limit of smoke screen is exceeded, the player loses their turn
+// - If the area chosen is already smoke covered, the player loses their turn
+// - If coordinated are valid with no other violations: the function marks the area with smoke, where ships become undetectable by radar sweeps.
 
-
-// Function to deploy a Smoke Screen by the human player
 void smokeScreen(Player *player) {
     char input[10];
     int row, col;
@@ -210,6 +230,15 @@ void smokeScreen(Player *player) {
     clearScreen();
 }
 
+//Requires:
+// - Two valid, non-null pointers "attacker" and "defender" of type "Player" structure
+// - A valid trackingDifficulty integer (type int)
+//Effects:
+// - Checks if artillery move is available for this turn
+// - Prompts player for valid coordinates
+// - Validates coordinates
+// - Targets a 2x2 area corresponding to player coordinates
+// - Updates grids to HIT or MISS
 void artillery(Player *attacker, Player *defender, int trackingDifficulty) {
     char input[10];
     int row, col;
@@ -294,6 +323,14 @@ void artillery(Player *attacker, Player *defender, int trackingDifficulty) {
         return;
     }
 }
+
+//Requires:
+// - Two valid, non-null pointers "attacker" and "defender" of type "Player" structure
+// - A valid trackingDifficulty integer (type int)
+//Effects:
+// - Checks if torpedo move is available in this turn
+// - Prompts player for a row or a column to target
+// - Hits any ship in provied row or column
 void torpedo(Player *attacker, Player *defender, int trackingDifficulty) {
     char input[10];
     int row, col;
@@ -432,6 +469,12 @@ void torpedo(Player *attacker, Player *defender, int trackingDifficulty) {
         printf("All enemy ships have been sunk! %s wins!\n", attacker->name);
     }
 }
+
+//Requires:
+// - Two valid, non-null pointers "bot" and "defender" of type "Player" structure
+// - A valid 2D array of type int with size 10x10
+//Effects:
+// - Creates a heat map by calculating the potential horizontal and vertical placements of all opponents ships and updates heat map accordingly
 void calculateHeatmap(Player *bot, Player *defender, int heatmap[GRID_SIZE][GRID_SIZE]) {
     // Initialize heatmap to zero
     for(int i = 0; i < GRID_SIZE; i++) {
@@ -523,6 +566,14 @@ void calculateHeatmap(Player *bot, Player *defender, int heatmap[GRID_SIZE][GRID
         }
     }
 }
+
+//Requires:
+// - A valid 2D array of type int of size 10x10
+// - Two non-null pointers "row" and "col" of type int
+// - A valid, non-null pointer "bot" of "Player" structure
+//Effects:
+// - Updates "row" and "col" with the coordinates the highest probability untargeted cell in the heat map
+// - If no valid target found, chooses random untargeted cell
 void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Player *bot) {
     int maxHeat = -1;
     *row = -1;
@@ -585,6 +636,13 @@ void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Pla
     }
 }
 
+//Requires:
+// - A valid, non-null pointer "bot" of "Player" strcture
+// - Two variables "row" and "col" of type int
+//Effects:
+// - Checks the four adjacent cells of the given coordinate "row"&"col"
+// - Checks if each adjacent cell that is not targeted yet is a pending attack
+// - Updates the cell to pending attack if not the case
 void addAdjacentCells(Player *bot, int row, int col) {
     int directions[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} }; // Up, Down, Left, Right
 
@@ -616,6 +674,10 @@ void addAdjacentCells(Player *bot, int row, int col) {
     }
 }
 
+//Requires: Two valid, non-null pointers "bot" and "defender" of "Player" struct
+//Effects:
+// - Determines direction in which defender's ship is placed
+// - Once direction is found, it locks direction until ship is sunk
 void determineDirection(Player *bot, Player *defender) {
     // Check all adjacent cells for additional hits to determine direction
     int directions[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} }; // Up, Down, Left, Right
