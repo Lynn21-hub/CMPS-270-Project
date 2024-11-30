@@ -450,17 +450,25 @@ void calculateHeatmap(Player *bot, Player *defender, int heatmap[GRID_SIZE][GRID
             for(int j = 0; j <= GRID_SIZE - currentShip.size; j++) {
                 bool valid = true;
 
-                // Check if any cell in the placement has been swept with no ships
+                // Check if any cell in the placement has been swept with no ships or already targeted
                 for(int k = 0; k < currentShip.size; k++) {
-                    if(defender->sweepResults[i][j + k] == SWEEPED_NO_SHIP) {
+                    // Map cell to sweep area
+                    int sweptRow = i / SMOKE_SCREEN_SIZE;
+                    int sweptCol = j / SMOKE_SCREEN_SIZE;
+
+                    // Check bot's own sweep results
+                    if(bot->sweepResults[sweptRow][sweptCol] == SWEEPED_NO_SHIP) {
                         valid = false;
                         break;
                     }
-                    if(defender->grid[i][j + k] == HIT || defender->grid[i][j + k] == MISS) {
+
+                    // Check if cell has been targeted already (HIT or MISS)
+                    if(bot->trackingGrid[i][j + k] != WATER) {
                         valid = false;
                         break;
                     }
                 }
+
                 if(valid) {
                     for(int k = 0; k < currentShip.size; k++) {
                         heatmap[i][j + k]++;
@@ -474,17 +482,24 @@ void calculateHeatmap(Player *bot, Player *defender, int heatmap[GRID_SIZE][GRID
             for(int i = 0; i <= GRID_SIZE - currentShip.size; i++) {
                 bool valid = true;
 
-                // Check if any cell in the placement has been swept with no ships
+                // Check if any cell in the placement has been swept with no ships or already targeted
                 for(int k = 0; k < currentShip.size; k++) {
-                    if(defender->sweepResults[i + k][j] == SWEEPED_NO_SHIP) {
+                    int sweptRow = (i + k) / SMOKE_SCREEN_SIZE;
+                    int sweptCol = j / SMOKE_SCREEN_SIZE;
+
+                    // Check bot's own sweep results
+                    if(bot->sweepResults[sweptRow][sweptCol] == SWEEPED_NO_SHIP) {
                         valid = false;
                         break;
                     }
-                    if(defender->grid[i + k][j] == HIT || defender->grid[i + k][j] == MISS) {
+
+                    // Check if cell has been targeted already (HIT or MISS)
+                    if(bot->trackingGrid[i + k][j] != WATER) {
                         valid = false;
                         break;
                     }
                 }
+
                 if(valid) {
                     for(int k = 0; k < currentShip.size; k++) {
                         heatmap[i + k][j]++;
@@ -494,7 +509,19 @@ void calculateHeatmap(Player *bot, Player *defender, int heatmap[GRID_SIZE][GRID
         }
     }
 
-    
+    // Zero out the heatmap for cells within swept no-ship areas
+    for(int i = 0; i <= GRID_SIZE - SMOKE_SCREEN_SIZE; i++) {
+        for(int j = 0; j <= GRID_SIZE - SMOKE_SCREEN_SIZE; j++) {
+            if(bot->sweepResults[i][j] == SWEEPED_NO_SHIP) {
+                // Zero out the entire 2x2 area
+                for(int x = i; x < i + SMOKE_SCREEN_SIZE; x++) {
+                    for(int y = j; y < j + SMOKE_SCREEN_SIZE; y++) {
+                        heatmap[x][y] = 0;
+                    }
+                }
+            }
+        }
+    }
 }
 void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Player *bot) {
     int maxHeat = -1;
@@ -504,6 +531,13 @@ void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Pla
     for(int i = 0; i < GRID_SIZE; i++) {
         for(int j = 0; j < GRID_SIZE; j++) {
             if(bot->trackingGrid[i][j] == WATER && heatmap[i][j] > maxHeat) {
+                // Map cell to sweep area
+                int sweptRow = i / SMOKE_SCREEN_SIZE;
+                int sweptCol = j / SMOKE_SCREEN_SIZE;
+
+                // Skip cells within swept no-ship areas
+                if(bot->sweepResults[sweptRow][sweptCol] == SWEEPED_NO_SHIP) continue;
+
                 maxHeat = heatmap[i][j];
                 *row = i;
                 *col = j;
@@ -516,6 +550,13 @@ void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Pla
         for(int i = 0; i < GRID_SIZE; i++) {
             for(int j = 0; j < GRID_SIZE; j++) {
                 if(bot->trackingGrid[i][j] == WATER && heatmap[i][j] > maxHeat) {
+                    // Map cell to sweep area
+                    int sweptRow = i / SMOKE_SCREEN_SIZE;
+                    int sweptCol = j / SMOKE_SCREEN_SIZE;
+
+                    // Skip cells within swept no-ship areas
+                    if(bot->sweepResults[sweptRow][sweptCol] == SWEEPED_NO_SHIP) continue;
+
                     *row = i;
                     *col = j;
                     maxHeat = heatmap[i][j];
@@ -531,6 +572,13 @@ void chooseBestTarget(int heatmap[GRID_SIZE][GRID_SIZE], int *row, int *col, Pla
             *row = rand() % GRID_SIZE;
             *col = rand() % GRID_SIZE;
             if(bot->trackingGrid[*row][*col] == WATER) {
+                // Map cell to sweep area
+                int sweptRow = *row / SMOKE_SCREEN_SIZE;
+                int sweptCol = *col / SMOKE_SCREEN_SIZE;
+
+                // Skip cells within swept no-ship areas
+                if(bot->sweepResults[sweptRow][sweptCol] == SWEEPED_NO_SHIP) continue;
+
                 found = true;
             }
         }
@@ -559,8 +607,9 @@ void addAdjacentCells(Player *bot, int row, int col) {
 
                 if(!alreadyPending && bot->pendingAttackCount < MAX_PENDING_ATTACKS) {
                     bot->pendingAttacks[bot->pendingAttackCount][0] = newRow;
+                    bot->pendingAttacks[bot->pendingAttackCount][1] = newCol;
                     bot->pendingAttackCount++;
-                    printf("[DEBUG] Added Pending Attack: %c%d\n", 'A' + newCol, newRow + 1);
+                   
                 }
             }
         }
@@ -583,7 +632,7 @@ void determineDirection(Player *bot, Player *defender) {
 
                 // Transition to LOCK_DIRECTION Phase
                 bot->currentPhase = lockDirection;
-                printf("[DEBUG] Determined Direction: Row Offset = %d, Col Offset = %d\n", bot->directionRow, bot->directionCol);
+             
 
                 // Update last hit position to the adjacent hit
                 bot->lastHitRow = adjRow;
@@ -596,7 +645,7 @@ void determineDirection(Player *bot, Player *defender) {
 
     // If no adjacent hit found, remain in TARGET Phase
     bot->currentPhase = Target;
-    printf("[DEBUG] No adjacent hits found. Remaining in TARGET Phase.\n");
+    
 }
 
 void adjustHeatmapOnMiss(Player *bot, int row, int col, Player *defender) {
@@ -615,8 +664,7 @@ void adjustHeatmapOnMiss(Player *bot, int row, int col, Player *defender) {
             if(bot->lastHeatmap[adjRow][adjCol] < 0) {
                 bot->lastHeatmap[adjRow][adjCol] = 0;
             }
-            printf("[DEBUG] Decreased heatmap at %c%d due to miss at %c%d.\n",
-                   'A' + adjCol, adjRow + 1, 'A' + col, row + 1);
+
         }
     }
 }
@@ -630,12 +678,12 @@ int botFire(Player *bot, Player *defender) {
 
     while (!actionTaken && iterations < maxIterations) {
         iterations++;
-        printf("[DEBUG] Bot Phase: %d, Pending Attacks: %d\n", bot->currentPhase, bot->pendingAttackCount);
+        
 
         // **Priority: If there are pending attacks, switch to TARGET phase**
         if (bot->pendingAttackCount > 0 && bot->currentPhase != Target && bot->currentPhase != lockDirection) {
             bot->currentPhase = Target;
-            printf("[DEBUG] Pending attacks detected. Switching to TARGET Phase.\n");
+           
         }
 
         switch (bot->currentPhase) {
@@ -645,7 +693,7 @@ int botFire(Player *bot, Player *defender) {
                     int heatmap[GRID_SIZE][GRID_SIZE];
                     calculateHeatmap(bot, defender, heatmap);
                     chooseBestTarget(heatmap, &row, &col, bot);
-                    printf("[DEBUG] HUNT Phase - Selected Target: %c%d with Heat: %d\n", 'A' + col, row + 1, heatmap[row][col]);
+                  
                 }
                 break;
 
@@ -655,8 +703,7 @@ int botFire(Player *bot, Player *defender) {
                     // Get the next pending attack coordinates
                     row = bot->pendingAttacks[0][0];
                     col = bot->pendingAttacks[0][1];
-                    printf("[DEBUG] TARGET Phase - Next Pending Attack: %c%d\n", 'A' + col, row + 1);
-
+                   
                     // Remove the processed attack from pending attacks
                     for (int i = 1; i < bot->pendingAttackCount; i++) {
                         bot->pendingAttacks[i - 1][0] = bot->pendingAttacks[i][0];
@@ -665,7 +712,7 @@ int botFire(Player *bot, Player *defender) {
                     bot->pendingAttackCount--;
                 } else {
                     // No pending attacks; revert to Hunt Phase
-                    printf("[DEBUG] TARGET Phase - No Pending Attacks. Reverting to HUNT.\n");
+                 
                     bot->currentPhase = Hunt;
                     continue; // Restart loop
                 }
@@ -677,7 +724,6 @@ int botFire(Player *bot, Player *defender) {
                     // Ensure that directionRow and directionCol have been set
                     if (bot->directionRow == 0 && bot->directionCol == 0) {
                         // Undefined direction; revert to Target Phase
-                        printf("[DEBUG] LOCK_DIRECTION Phase - Undefined Direction. Reverting to TARGET.\n");
                         bot->currentPhase = Target;
                         continue; // Restart loop
                     }
@@ -685,23 +731,20 @@ int botFire(Player *bot, Player *defender) {
                     // Calculate next target based on locked direction
                     row = bot->lastHitRow + bot->directionRow;
                     col = bot->lastHitCol + bot->directionCol;
-                    printf("[DEBUG] LOCK_DIRECTION Phase - Continuing in Direction Row: %d, Col: %d -> Target: %c%d\n",
                            bot->directionRow, bot->directionCol, 'A' + col, row + 1);
 
                     // Check boundaries
                     if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) {
                         // Reverse direction if out of bounds
-                        printf("[DEBUG] LOCK_DIRECTION Phase - Target %c%d out of bounds. Reversing Direction.\n", 'A' + col, row + 1);
                         bot->directionRow = -bot->directionRow;
                         bot->directionCol = -bot->directionCol;
                         row = bot->lastHitRow + bot->directionRow;
                         col = bot->lastHitCol + bot->directionCol;
-                        printf("[DEBUG] LOCK_DIRECTION Phase - New Target after Reversing: %c%d\n", 'A' + col, row + 1);
+                    
 
                         // Check again after reversing
                         if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) {
                             // Cannot fire in any direction; revert to Hunt Phase
-                            printf("[DEBUG] LOCK_DIRECTION Phase - New Target %c%d still out of bounds. Reverting to HUNT.\n", 'A' + col, row + 1);
                             bot->currentPhase = Hunt;
                             bot->directionRow = 0;
                             bot->directionCol = 0;
@@ -712,17 +755,14 @@ int botFire(Player *bot, Player *defender) {
                     // Check if the cell has already been targeted
                     if (bot->trackingGrid[row][col] != WATER) {
                         // Skip and try reversing direction
-                        printf("[DEBUG] LOCK_DIRECTION Phase - Target %c%d already targeted. Reversing Direction.\n", 'A' + col, row + 1);
                         bot->directionRow = -bot->directionRow;
                         bot->directionCol = -bot->directionCol;
                         row = bot->lastHitRow + bot->directionRow;
                         col = bot->lastHitCol + bot->directionCol;
-                        printf("[DEBUG] LOCK_DIRECTION Phase - New Target after Reversing: %c%d\n", 'A' + col, row + 1);
-
+                        
                         // Check boundaries again
                         if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE || bot->trackingGrid[row][col] != WATER) {
                             // Cannot fire in any direction; revert to Hunt Phase
-                            printf("[DEBUG] LOCK_DIRECTION Phase - New Target %c%d already targeted or out of bounds. Reverting to HUNT.\n", 'A' + col, row + 1);
                             bot->currentPhase = Hunt;
                             bot->directionRow = 0;
                             bot->directionCol = 0;
@@ -734,20 +774,16 @@ int botFire(Player *bot, Player *defender) {
 
             default:
                 // Undefined phase; revert to Hunt Phase
-                printf("[DEBUG] Undefined Phase %d. Reverting to HUNT.\n", bot->currentPhase);
                 bot->currentPhase = Hunt;
                 continue; // Restart loop
         }
 
         // Check if the selected cell has already been targeted
         if (bot->trackingGrid[row][col] != WATER) {
-            printf("[DEBUG] Selected Target %c%d has already been targeted. Skipping.\n", 'A' + col, row + 1);
             if (bot->currentPhase == Target || bot->currentPhase == lockDirection) {
                 if (bot->currentPhase == Target && bot->pendingAttackCount > 0) {
-                    printf("[DEBUG] TARGET Phase - Continuing with next Pending Attack.\n");
                     continue; // Restart loop
                 } else {
-                    printf("[DEBUG] TARGET Phase or LOCK_DIRECTION Phase - No Valid Pending Attacks. Reverting to HUNT.\n");
                     bot->currentPhase = Hunt;
                     continue; // Restart loop
                 }
@@ -756,15 +792,7 @@ int botFire(Player *bot, Player *defender) {
             break;
         }
 
-        // **Incorporate Pattern-Based Targeting: Checkerboard Pattern**
-        if ((row + col) % 2 != 0) {
-            // If the selected target does not fit the checkerboard pattern, skip it and choose the next best target
-            printf("[DEBUG] Selected Target %c%d does not fit the checkerboard pattern. Skipping.\n", 'A' + col, row + 1);
-            // Optionally, adjust the heatmap or choose another target here
-            // For simplicity, we'll set the heatmap at this cell to zero and continue
-            bot->lastHeatmap[row][col] = 0;
-            continue; // Restart loop to choose a new target
-        }
+        
 
         printf("Bot fires at %c%d.\n", 'A' + col, row + 1);
 
@@ -784,24 +812,23 @@ int botFire(Player *bot, Player *defender) {
                 bot->currentPhase = Target;
                 // Add adjacent cells to pending attacks
                 addAdjacentCells(bot, row, col);
-                printf("[DEBUG] Transitioned to TARGET Phase. Pending Attacks Count: %d\n", bot->pendingAttackCount);
+               
             }
             else if (bot->currentPhase == Target) {
                 // Second hit; determine direction
                 determineDirection(bot, defender);
-                printf("[DEBUG] Transitioned to LOCK_DIRECTION Phase.\n");
             }
             else if (bot->currentPhase == lockDirection) {
                 // Continue in Lock Direction Phase
                 // No additional action needed here
-                printf("[DEBUG] Continuing LOCK_DIRECTION Phase.\n");
+              
             }
 
             // Check if the ship is sunk
             Ship *hitShip = findShipAtPosition(defender, row, col);
             if (hitShip != NULL) {
                 hitShip->hits++;
-                printf("[DEBUG] %s: Hits %d/%d\n", hitShip->name, hitShip->hits, hitShip->size);
+               
 
                 if (hitShip->hits == hitShip->size && !hitShip->sunk) {
                     hitShip->sunk = true;
@@ -817,7 +844,7 @@ int botFire(Player *bot, Player *defender) {
                     bot->pendingAttackCount = 0;
                     bot->directionRow = 0;
                     bot->directionCol = 0;
-                    printf("[DEBUG] Transitioned to HUNT Phase after sinking a ship.\n");
+                    
                 }
             }
         }
@@ -827,11 +854,10 @@ int botFire(Player *bot, Player *defender) {
 
             // Adjust heatmap based on miss
             adjustHeatmapOnMiss(bot, row, col, defender);
-            printf("[DEBUG] Adjusted heatmap based on miss at %c%d.\n", 'A' + col, row + 1);
+            
 
             // If in Target Phase, switch back to Hunt if no pending attacks
             if (bot->currentPhase == Target && bot->pendingAttackCount == 0) {
-                printf("[DEBUG] TARGET Phase - No Pending Attacks after Miss. Reverting to HUNT.\n");
                 bot->currentPhase = Hunt;
             }
         }
@@ -851,7 +877,6 @@ int botFire(Player *bot, Player *defender) {
 
     // Prevent botFire from going into infinite loops
     if (iterations >= maxIterations) {
-        printf("[DEBUG] botFire reached max iterations. Reverting to HUNT Phase.\n");
         bot->currentPhase = Hunt;
         return 0;
     }
@@ -954,7 +979,7 @@ void botRadar(Player *bot, Player *defender) {
         for(int i = bestRow; i < bestRow + SMOKE_SCREEN_SIZE; i++) {
             for(int j = bestCol; j < bestCol + SMOKE_SCREEN_SIZE; j++) {
                 // Avoid adding already hit or missed cells
-                if(defender->grid[i][j] == SHIP || defender->grid[i][j] == WATER) {
+                if(bot->trackingGrid[i][j] == WATER) {
                     // Check if the cell is already pending
                     bool alreadyPending = false;
                     for(int p = 0; p < bot->pendingAttackCount; p++) {
@@ -965,6 +990,7 @@ void botRadar(Player *bot, Player *defender) {
                     }
                     if(!alreadyPending && bot->pendingAttackCount < MAX_PENDING_ATTACKS) {
                         bot->pendingAttacks[bot->pendingAttackCount][0] = i;
+                        bot->pendingAttacks[bot->pendingAttackCount][1] = j;
                         bot->pendingAttackCount++;
                         printf("[DEBUG] Added %c%d to pending attacks.\n", 'A' + j, i + 1);
                     }
