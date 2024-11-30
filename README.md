@@ -1,30 +1,14 @@
-This project is an advanced digital implementation of the classic strategy game Battleship developed in C, created as part of the CMPS 270 Software Construction course. The game offers both traditional gameplay and advanced features like radar sweeps, torpedo strikes, and more. The project is divided into two phases: a two-player console-based version in phase one, and a bot-based human vs. AI gameplay in phase two.
+The Battleship Bot project is a robust command-line implementation of the Battleship game that offers a challenging and adaptive AI opponent. The bot employs a dynamic decision-making system built around multiple strategies, such as heatmap-based targeting, radar sweeps, and a phased approach that includes Hunt, Target, and Lock Direction phases.
 
-Features
-Phase 1: Two-Player Mode
-Grid Setup: Each player has a 10x10 grid where ships are placed. Ships include:
-Carrier (5 cells)
-Battleship (4 cells)
-Destroyer (3 cells)
-Submarine (2 cells)
-Game Mechanics:
-Players take turns guessing the location of the opponent's ships by firing at specific coordinates.
-Special moves like Radar Sweeps, Smoke Screens, Artillery, and Torpedo are unlocked based on game conditions.
-The game tracks hits and misses, with different levels of tracking difficulty.
-Interactive Console: The game is fully console-based, with prompts guiding players through ship placement and each turn.
+Key Features:
+Heatmap Targeting: The bot uses a heatmap to prioritize cells based on the likelihood of containing ships, dynamically updating probabilities after every hit, miss, and radar result.
+Radar Sweeps: The bot performs radar sweeps to detect ships within a 2x2 grid, intelligently focusing on high-probability areas and marking irrelevant zones to prevent redundant actions.
+Phased Decision-Making: The bot transitions between phases to optimize its strategy:
+Hunt Phase: Searches for ships using heatmap probabilities.
+Target Phase: Focuses attacks on a specific ship after detecting a hit, adding surrounding cells to a pending attack list.
+Lock Direction Phase: Once two consecutive hits are aligned, the bot locks onto a direction to sink the ship efficiently.
+Utility Functions: Functions like addAdjacentCells, adjustHeatmapOnMiss, and determineDirection enable the bot to handle complex decision-making scenarios, ensuring adaptability and responsiveness.
+Advanced Moves: Abilities like artillery strikes and smoke screens introduce unique strategic elements, making gameplay more dynamic. Artillery targets 2x2 areas with maximum probability, while smoke screens obstruct radar sweeps.
+Error Handling and Debugging: The bot includes detailed debugging messages for insights into decision-making processes, ensuring transparency and easier troubleshooting during development.
+This project is highly modular, making it easy to modify or extend functionalities. From strategic gameplay to adaptive intelligence, the Battleship Bot delivers an engaging and competitive experience for players.
 
-
-
-Phase 2: Human vs AI Bot
-Bot Implementation: In phase two, a bot will replace one player, introducing a single-player experience. The bot uses strategic algorithms that perform better than random, making the game more challenging.
-Difficulty Levels: Players can choose between Easy, Medium, and Hard bots, each with varying levels of strategy.
-Bonus Features (Optional)
-Difficulty Levels for the Bot: Add Easy, Medium, and Hard difficulty levels, with clear differences in the bot’s strategic behavior.
-Battle Royale Tournament: Compete with other bots in a knockout tournament, with the top 3 bots receiving bonus points!
-
-
-Project Structure
-Battleship.c: Contains the core gameplay mechanics, including grid initialization, ship placement, and player turns.
-Bot.c: Implements the AI bot logic, with different difficulty levels for phase two.
-main.c: Entry point for the program, controlling the game flow and interaction.
-README.md: This file, explaining the project setup, gameplay, and features.
