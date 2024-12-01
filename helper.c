@@ -13,7 +13,7 @@ void initializePlayer(Player *player, int botFlag) {
      Constants `GRID_SIZE`, `TOTAL_SHIPS`, `SMOKE_SCREEN_SIZE`, and `MAX_SHIP_SIZE` are defined.
      `initializeGrid` is implemented and initializes a grid.
 
-     Effects:
+    Effects:
     Resets and initializes all `Player` attributes:
     `grid`, `smokeScreenGrid`, `trackingGrid` are cleared.
     Counters (`radarSweepsUsed`, `smokeScreensUsed`, etc.) and flags are set to default values.

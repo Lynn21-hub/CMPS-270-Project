@@ -674,7 +674,7 @@ void addAdjacentCells(Player *bot, int row, int col) {
     }
 }
 
-//Requires: Two valid, non-null pointers "bot" and "defender" of "Player" struct
+//Requires:- Two valid, non-null pointers "bot" and "defender" of "Player" struct
 //Effects:
 // - Determines direction in which defender's ship is placed
 // - Once direction is found, it locks direction until ship is sunk
@@ -708,8 +708,9 @@ void determineDirection(Player *bot, Player *defender) {
     // If no adjacent hit found, remain in TARGET Phase
     bot->currentPhase = Target;
     
-}
-
+}//Requires:- Two valid non null pointers to "bot" and "defender" of Player struct
+//          - Two variables "row" and "column" of type int 
+//Effects: Once a cell is missed after firing, it decreases its value and the value of its adjacent cells on the heatmap 
 void adjustHeatmapOnMiss(Player *bot, int row, int col, Player *defender) {
     int directions[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} }; // Up, Down, Left, Right
 
@@ -720,8 +721,6 @@ void adjustHeatmapOnMiss(Player *bot, int row, int col, Player *defender) {
         // Check boundaries
         if(adjRow >=0 && adjRow < GRID_SIZE && adjCol >=0 && adjCol < GRID_SIZE) {
             // Decrease probability
-            // Assuming heatmap is stored or recalculated each time, else you need to store it
-            // For demonstration, assuming you have a bot->lastHeatmap
             bot->lastHeatmap[adjRow][adjCol] -= 2;
             if(bot->lastHeatmap[adjRow][adjCol] < 0) {
                 bot->lastHeatmap[adjRow][adjCol] = 0;
@@ -730,8 +729,12 @@ void adjustHeatmapOnMiss(Player *bot, int row, int col, Player *defender) {
         }
     }
 }
-
-
+//Requires: two valid non null pointers to "bot and "defender" of Player struct 
+//Effects:- Transitions between phases (e.g., Hunt -> Target, Target -> lockDirection) as necessary.
+// - Adjusts the heatmap and pending attack queue based on the outcome of the attack.
+// - Checks if any of the defender's ships are sunk and transitions phases accordingly.
+// - Ends the game if all the defender's ships are sunk, returning 1.
+// - Returns 0 if the game is still ongoing or if the bot is unable to act within `maxIterations` attempts.
 int botFire(Player *bot, Player *defender) {
     int row, col;
     bool actionTaken = false;
@@ -945,7 +948,10 @@ int botFire(Player *bot, Player *defender) {
 
     return 0; // Game continues
 }
-
+//Requires: Two valid non null pointers to "bot" and "defender" of player struct 
+//Effects: Peforms a radar sweep on a 2x2 area based on previous heatmap calculations
+// - If ships are detected in the area, adds corresponding cells to "bot->pendingAttacks" and increments "bot->pendingAttackCount".
+// - If ships are detected, transitions "bot->currentPhase" to Target.
 void botRadar(Player *bot, Player *defender) {
     if(bot->radarSweepsUsed >= MAX_RADAR_SWEEPS) {
         printf("Bot could not perform Radar sweep. No sweeps left.\n");
@@ -1068,7 +1074,11 @@ void botRadar(Player *bot, Player *defender) {
     // Increment radar sweeps used
     bot->radarSweepsUsed++;
 }
-// Function to deploy a Smoke Screen by the bot
+//Requires: A valid non null pointer to "bot" of Player struct 
+//Effects:- Deploys Smoke Screens around unsunk ships within a perimeter of size 1.
+// - Updates "bot->smokeScreenGrid" for cells where Smoke Screens are deployed.
+// - If all available Smoke Screens are deployed, the function exits early.
+// - If no Smoke Screens are available or deployable, the function prints a corresponding message.
 void botSmokeScreen(Player *bot) {
     // Determine the number of allowed Smoke Screens based on ships sunk
     int allowedSmokeScreens = bot->shipsSunk;
@@ -1128,7 +1138,11 @@ void botSmokeScreen(Player *bot) {
         printf("Bot has unused Smoke Screens remaining.\n");
     }
 }
-
+//Requires:- Two valid non null pointers to "bot" and "defender" of type Player Strcut 
+//- "trackingDifficulty" must be an integer indicating the difficulty level for tracking missed attacks.
+//Effects: - Determines the optimal 2x2 area for an Artillery strike based on the heatmap 
+// - If a ship is hit, marks it as HIT and checks whether it is sunk.
+// - If a ship is sunk, updates its status and decrements "defender->shipsRemaining".
 void botArtillery(Player *bot, Player *defender, int trackingDifficulty) {
     // Check if Artillery is available
     if (!bot->artilleryAvailable) {
@@ -1257,7 +1271,10 @@ void botArtillery(Player *bot, Player *defender, int trackingDifficulty) {
         return;
     }
 }
-
+//Requires: - Two valid non null pointers of type Player Struct 
+// - "trackingDifficulty" must be an integer indicating the difficulty level for tracking missed attacks.
+//Effects: - Targets either a row or column based on heatmap calculations.
+// - Updates the defender’s grid (HIT, MISS) and bot’s tracking grid accordingly.
 
 void botTorpedo(Player *bot, Player *defender, int trackingDifficulty) {
     // Check if Torpedo is available
