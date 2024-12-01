@@ -185,7 +185,7 @@ int chooseFirstPlayer() {
     srand((unsigned int) time(NULL));
     return rand() % 2 + 1;
 }
-
+}
 
 
 // Function to check if a ship can be placed at the given position

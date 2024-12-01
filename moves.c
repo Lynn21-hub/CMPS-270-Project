@@ -796,7 +796,7 @@ int botFire(Player *bot, Player *defender) {
                     // Calculate next target based on locked direction
                     row = bot->lastHitRow + bot->directionRow;
                     col = bot->lastHitCol + bot->directionCol;
-                           bot->directionRow, bot->directionCol, 'A' + col, row + 1);
+                        
 
                     // Check boundaries
                     if (row < 0 || row >= GRID_SIZE || col < 0 || col >= GRID_SIZE) {
