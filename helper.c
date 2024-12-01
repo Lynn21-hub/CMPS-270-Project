@@ -173,7 +173,7 @@ void getPlayerNames(Player *player1, Player *player2) {
 }
 
 // Function to randomly choose the first player
-int chooseFirstPlayer() {
+
     int chooseFirstPlayer() {
     /* Requires:
      Standard library `time.h` is included.
@@ -185,7 +185,7 @@ int chooseFirstPlayer() {
     srand((unsigned int) time(NULL));
     return rand() % 2 + 1;
 }
-}
+
 
 
 // Function to check if a ship can be placed at the given position
