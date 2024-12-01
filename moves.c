@@ -1074,68 +1074,106 @@ void botRadar(Player *bot, Player *defender) {
     // Increment radar sweeps used
     bot->radarSweepsUsed++;
 }
-//Requires: A valid non null pointer to "bot" of Player struct 
-//Effects:- Deploys Smoke Screens around unsunk ships within a perimeter of size 1.
-// - Updates "bot->smokeScreenGrid" for cells where Smoke Screens are deployed.
-// - If all available Smoke Screens are deployed, the function exits early.
-// - If no Smoke Screens are available or deployable, the function prints a corresponding message.
+
+// Requires:
+// - A valid non-null pointer to "bot" of Player struct
+// Effects:
+// - Deploys Smoke Screens as 2x2 blocks around unsunk ships based on allowed limits
+// - Updates "bot->smokeScreenGrid" for cells where Smoke Screens are deployed
+// - Clears the screen after deploying to preserve secrecy
+// - If attempting to deploy more than allowed, loses the turn
 void botSmokeScreen(Player *bot) {
+    // Validate input
+    if (bot == NULL) {
+        printf("Invalid bot player.\n");
+        return;
+    }
+
     // Determine the number of allowed Smoke Screens based on ships sunk
     int allowedSmokeScreens = bot->shipsSunk;
     int availableSmokeScreens = allowedSmokeScreens - bot->smokeScreensUsed;
 
-    if(availableSmokeScreens <= 0) {
+    if (availableSmokeScreens <= 0) {
         printf("Bot has no Smoke Screens left to deploy.\n");
         return;
     }
 
-    // Define the perimeter around a ship to deploy Smoke Screens
-    int perimeterOffset = 1; // Number of cells around the ship to cover
+    // Define the Smoke Screen size (2x2)
+    int smokeSize = SMOKE_SCREEN_SIZE;
 
-    // Iterate through each ship in the bot's fleet
-    for(int s = 0; s < TOTAL_SHIPS; s++) {
-        if(bot->fleet[s].sunk) continue; // Skip sunk ships
+    // Flag to track if any Smoke Screen was deployed
+    bool smokeDeployed = false;
 
-        // Get the ship's coordinates
-        for(int p = 0; p < bot->fleet[s].size; p++) {
-            int shipRow = bot->fleet[s].positions[p][0];
-            int shipCol = bot->fleet[s].positions[p][1];
+    // Iterate through the grid to find every possible 2x2 area
+    for (int i = 0; i <= GRID_SIZE - smokeSize; i++) {
+        for (int j = 0; j <= GRID_SIZE - smokeSize; j++) {
+            // Initialize coversShip for the current 2x2 area
+            bool coversShip = false;
 
-            // Define the area around the ship's current position
-            for(int i = shipRow - perimeterOffset; i <= shipRow + perimeterOffset; i++) {
-                for(int j = shipCol - perimeterOffset; j <= shipCol + perimeterOffset; j++) {
-                    // Check if the cell is within grid bounds
-                    if(i < 0 || i >= GRID_SIZE || j < 0 || j >= GRID_SIZE)
-                        continue;
-
-                    // Skip the ship's own cells
-                    if(bot->grid[i][j] == SHIP)
-                        continue;
-
-                    // Check if the cell is already covered by a Smoke Screen
-                    if(bot->smokeScreenGrid[i][j] == SMOKE)
-                        continue;
-
-                    // Deploy Smoke Screen if available
-                    if(availableSmokeScreens > 0) {
-                        bot->smokeScreenGrid[i][j] = SMOKE;
-                        bot->smokeScreensUsed++;
-                        availableSmokeScreens--;
-
-                        printf("Bot deployed a Smoke Screen at %c%d.\n", 'A' + j, i + 1);
-
-                        // If no more Smoke Screens are available, exit
-                        if(availableSmokeScreens <= 0)
-                            return;
+            // Check if deploying Smoke Screen here would cover at least one ship
+            for (int x = i; x < i + smokeSize; x++) {
+                for (int y = j; y < j + smokeSize; y++) {
+                    if (bot->grid[x][y] == SHIP) {
+                        coversShip = true;
+                        break; // Exit inner loop early since a ship is found
                     }
                 }
+                if (coversShip) break; // Exit outer loop early since a ship is found
             }
+
+            if (!coversShip) continue; // Prefer Smoke Screens that protect ships
+
+            // Check if the 2x2 area is already covered by Smoke Screens
+            bool alreadySmoked = false;
+            for (int x = i; x < i + smokeSize; x++) {
+                for (int y = j; y < j + smokeSize; y++) {
+                    if (bot->smokeScreenGrid[x][y] == SMOKE) {
+                        alreadySmoked = true;
+                        break;
+                    }
+                }
+                if (alreadySmoked) break;
+            }
+
+            if (alreadySmoked) continue; // Avoid overlapping Smoke Screens
+
+            // Deploy Smoke Screen
+            for (int x = i; x < i + smokeSize; x++) {
+                for (int y = j; y < j + smokeSize; y++) {
+                    bot->smokeScreenGrid[x][y] = SMOKE;
+                }
+            }
+
+            bot->smokeScreensUsed++;
+            availableSmokeScreens--;
+            smokeDeployed = true;
+
+            printf("Bot deployed a Smoke Screen at %c%d.\n", 'A' + j, i + 1);
+
+            // Clear the screen to preserve secrecy
+            clearScreen();
+
+            // If no more Smoke Screens are available, exit
+            if (availableSmokeScreens <= 0)
+                return;
         }
     }
 
+    // If the bot attempted to deploy more Smoke Screens than allowed, lose the turn
+    if (availableSmokeScreens < 0) {
+        printf("Bot attempted to deploy more Smoke Screens than allowed. Turn lost.\n");
+        // Implement turn loss logic here (e.g., return a status, update game state)
+        return;
+    }
+
     // Inform if all available Smoke Screens have been deployed
-    if(availableSmokeScreens > 0) {
+    if (smokeDeployed && availableSmokeScreens > 0) {
         printf("Bot has unused Smoke Screens remaining.\n");
+    }
+
+    // If no Smoke Screens were deployed but some are available
+    if (!smokeDeployed && availableSmokeScreens > 0) {
+        printf("Bot could not find suitable areas to deploy Smoke Screens.\n");
     }
 }
 //Requires:- Two valid non null pointers to "bot" and "defender" of type Player Strcut 
